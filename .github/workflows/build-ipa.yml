@@ -1,0 +1,58 @@
+name: Build iOS IPA for iLoader
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Dist
+        run: npm run build
+
+      - name: Sync dist to iOS bundle
+        run: |
+          mkdir -p ios/IronTrack/IronTrack/www
+          cp -R dist/* ios/IronTrack/IronTrack/www/
+
+      - name: Build Unsigned IPA with Xcode
+        run: |
+          mkdir -p build
+          cd ios/IronTrack
+          xcodebuild archive \
+            -project IronTrack.xcodeproj \
+            -scheme IronTrack \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "../../build/IronTrack.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          
+          cd ../..
+          mkdir -p build/Payload
+          cp -R build/IronTrack.xcarchive/Products/Applications/IronTrack.app build/Payload/
+          cd build
+          zip -qr IronTrack.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IronTrack-IPA
+          path: build/IronTrack.ipa

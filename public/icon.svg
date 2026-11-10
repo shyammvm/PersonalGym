@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#12141c"/>
+      <stop offset="100%" stop-color="#090a0f"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#06d6a0"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#10b981" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="#2b3044" stroke-width="6"/>
+  <!-- Dumbbell Icon -->
+  <g transform="translate(256, 256) rotate(-45) translate(-256, -256)" filter="url(#glow)">
+    <!-- Bar -->
+    <rect x="176" y="240" width="160" height="32" rx="8" fill="#e2e8f0"/>
+    <rect x="236" y="238" width="40" height="36" rx="4" fill="#94a3b8"/>
+    <!-- Left Plate Large -->
+    <rect x="148" y="166" width="32" height="180" rx="10" fill="url(#greenGrad)"/>
+    <!-- Left Plate Small -->
+    <rect x="116" y="196" width="24" height="120" rx="8" fill="#10b981"/>
+    <!-- Left Collar -->
+    <rect x="180" y="226" width="10" height="60" rx="4" fill="#64748b"/>
+    <!-- Right Plate Large -->
+    <rect x="332" y="166" width="32" height="180" rx="10" fill="url(#greenGrad)"/>
+    <!-- Right Plate Small -->
+    <rect x="372" y="196" width="24" height="120" rx="8" fill="#10b981"/>
+    <!-- Right Collar -->
+    <rect x="322" y="226" width="10" height="60" rx="4" fill="#64748b"/>
+  </g>
+</svg>
