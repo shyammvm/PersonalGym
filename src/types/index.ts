@@ -71,6 +71,8 @@ export interface AppSettings {
   default_rest_seconds: number;
   supabase_url: string;
   supabase_anon_key: string;
+  pin_lock_enabled?: boolean;
+  pin_code?: string;
 }
 
 export interface WorkoutTemplate {

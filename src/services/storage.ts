@@ -1,4 +1,4 @@
-import { Workout, Exercise, AppSettings, UserStreaks } from '../types';
+import { Workout, WorkoutSet, Exercise, AppSettings, UserStreaks } from '../types';
 import { DEFAULT_EXERCISES } from '../data/defaultExercises';
 import { calculateStreaks } from '../utils/streaks';
 import { getSupabaseClient } from './supabase';
@@ -9,6 +9,7 @@ const KEYS = {
   ACTIVE_WORKOUT: 'irontrack_active_workout',
   SETTINGS: 'irontrack_settings',
   STREAKS: 'irontrack_streaks',
+  CUSTOM_TEMPLATES: 'irontrack_custom_templates',
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -157,6 +158,139 @@ class GymStorageService {
     return calculateStreaks(workouts);
   }
 
+  // Comprehensive exercise history for progression graphs
+  getExerciseHistory(exerciseId: string): {
+    date: string;
+    workoutId: string;
+    workoutName: string;
+    maxWeight: number;
+    repsAtMax: number;
+    estimated1RM: number;
+    totalVolume: number;
+    sets: WorkoutSet[];
+  }[] {
+    const workouts = this.getWorkouts();
+    const history: {
+      date: string;
+      workoutId: string;
+      workoutName: string;
+      maxWeight: number;
+      repsAtMax: number;
+      estimated1RM: number;
+      totalVolume: number;
+      sets: WorkoutSet[];
+    }[] = [];
+
+    workouts.forEach(w => {
+      const exSets = w.sets.filter(s => s.exercise_id === exerciseId && s.is_completed);
+      if (exSets.length > 0) {
+        let maxWeight = 0;
+        let repsAtMax = 0;
+        let best1RM = 0;
+        let totalVolume = 0;
+
+        exSets.forEach(s => {
+          totalVolume += s.weight * s.reps;
+          const est1RM = Math.round(s.weight * (1 + s.reps / 30.0) * 10) / 10;
+          if (est1RM > best1RM) {
+            best1RM = est1RM;
+          }
+          if (s.weight > maxWeight) {
+            maxWeight = s.weight;
+            repsAtMax = s.reps;
+          }
+        });
+
+        history.push({
+          date: w.start_time,
+          workoutId: w.id,
+          workoutName: w.name,
+          maxWeight,
+          repsAtMax,
+          estimated1RM: best1RM,
+          totalVolume,
+          sets: exSets
+        });
+      }
+    });
+
+    // Chronological order (oldest to newest for graphing)
+    return history.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Log planned active recovery / rest day to preserve streak
+  logRestDay(notes: string = 'Active Recovery & Stretching'): Workout {
+    const restWorkout: Workout = {
+      id: `rest-${Date.now()}`,
+      name: 'Active Recovery & Rest Day',
+      start_time: new Date().toISOString(),
+      end_time: new Date().toISOString(),
+      duration_seconds: 1200,
+      notes,
+      total_volume_kg: 0,
+      is_completed: true,
+      sets: []
+    };
+    this.saveWorkout(restWorkout);
+    return restWorkout;
+  }
+
+  // Custom Workout Routine Templates
+  getCustomTemplates(): any[] {
+    try {
+      const stored = localStorage.getItem(KEYS.CUSTOM_TEMPLATES);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  saveCustomTemplate(template: any): void {
+    const list = this.getCustomTemplates().filter(t => t.id !== template.id);
+    list.push(template);
+    localStorage.setItem(KEYS.CUSTOM_TEMPLATES, JSON.stringify(list));
+  }
+
+  deleteCustomTemplate(id: string): void {
+    const list = this.getCustomTemplates().filter(t => t.id !== id);
+    localStorage.setItem(KEYS.CUSTOM_TEMPLATES, JSON.stringify(list));
+  }
+
+  // Backup export / import
+  exportAllData(): string {
+    const data = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      workouts: this.getWorkouts(),
+      customExercises: this.getExercises().filter(e => e.is_custom),
+      customTemplates: this.getCustomTemplates(),
+      settings: this.getSettings()
+    };
+    return JSON.stringify(data, null, 2);
+  }
+
+  importAllData(jsonStr: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (parsed.workouts && Array.isArray(parsed.workouts)) {
+        localStorage.setItem(KEYS.WORKOUTS, JSON.stringify(parsed.workouts));
+      }
+      if (parsed.customExercises && Array.isArray(parsed.customExercises)) {
+        localStorage.setItem(KEYS.CUSTOM_EXERCISES, JSON.stringify(parsed.customExercises));
+      }
+      if (parsed.customTemplates && Array.isArray(parsed.customTemplates)) {
+        localStorage.setItem(KEYS.CUSTOM_TEMPLATES, JSON.stringify(parsed.customTemplates));
+      }
+      if (parsed.settings) {
+        localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsed.settings));
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to import backup data:', e);
+      return false;
+    }
+  }
+
   // Previous performance lookup for an exercise
   getLastPerformance(exerciseId: string): { weight: number; reps: number } | null {
     const workouts = this.getWorkouts();
@@ -193,6 +327,79 @@ class GymStorageService {
     }
 
     return best.oneRepMax > 0 ? best : null;
+  }
+
+  // Fetch user's private workouts from Supabase into local storage
+  async pullFromSupabase(): Promise<{ success: boolean; count: number; error?: string }> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { success: false, count: 0, error: 'Supabase client not configured' };
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, count: 0, error: 'Not authenticated with Supabase' };
+
+      // Query workouts strictly belonging to this authenticated user
+      const { data: workoutsData, error: wError } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_time', { ascending: false });
+
+      if (wError) {
+        return { success: false, count: 0, error: wError.message };
+      }
+
+      if (!workoutsData || workoutsData.length === 0) {
+        return { success: true, count: 0 };
+      }
+
+      const workoutIds = workoutsData.map(w => w.id);
+      const { data: setsData } = await supabase
+        .from('workout_sets')
+        .select('*')
+        .in('workout_id', workoutIds)
+        .order('set_number', { ascending: true });
+
+      const allSets = setsData || [];
+
+      const merged: Workout[] = workoutsData.map(w => {
+        const sets = allSets.filter(s => s.workout_id === w.id);
+        return {
+          id: w.id,
+          name: w.name,
+          start_time: w.start_time,
+          end_time: w.end_time || undefined,
+          duration_seconds: w.duration_seconds || 0,
+          notes: w.notes || undefined,
+          total_volume_kg: Number(w.total_volume_kg) || 0,
+          is_completed: w.is_completed ?? true,
+          sets: sets.map(s => ({
+            id: s.id,
+            exercise_id: s.exercise_id,
+            exercise_name: s.exercise_name,
+            set_number: s.set_number,
+            set_type: s.set_type,
+            weight: Number(s.weight),
+            reps: Number(s.reps),
+            rest_seconds: s.rest_seconds,
+            rpe: s.rpe ? Number(s.rpe) : undefined,
+            is_completed: s.is_completed ?? true,
+            completed_at: s.completed_at || undefined
+          }))
+        };
+      });
+
+      localStorage.setItem(KEYS.WORKOUTS, JSON.stringify(merged));
+      return { success: true, count: merged.length };
+    } catch (e: any) {
+      return { success: false, count: 0, error: e?.message || 'Sync failed' };
+    }
+  }
+
+  // Clear all local workouts (e.g., when signing out or starting completely fresh)
+  clearAllWorkouts(): void {
+    localStorage.removeItem(KEYS.WORKOUTS);
+    localStorage.removeItem(KEYS.ACTIVE_WORKOUT);
   }
 
   // Sync to Supabase helper

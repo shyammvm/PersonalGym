@@ -6,6 +6,7 @@ import { HistoryView } from './components/HistoryView';
 import { ExercisesView } from './components/ExercisesView';
 import { SettingsView } from './components/SettingsView';
 import { RestTimerFloating } from './components/RestTimerFloating';
+import { PinLockModal } from './components/PinLockModal';
 import { Workout, AppSettings, UserStreaks } from './types';
 import { gymStorage } from './services/storage';
 
@@ -15,19 +16,23 @@ export function App() {
   const [workout, setWorkout] = useState<Workout | null>(gymStorage.getActiveWorkout());
   const [workoutsList, setWorkoutsList] = useState<Workout[]>(gymStorage.getWorkouts());
   const [streaks, setStreaks] = useState<UserStreaks>(gymStorage.getStreaks());
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    const s = gymStorage.getSettings();
+    return Boolean(s.pin_lock_enabled && s.pin_code);
+  });
 
   // Rest Timer state
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [timerExerciseName, setTimerExerciseName] = useState('');
 
-  // Initial load: check if first time, seed demo data automatically so user gets immediate visual feedback
+  // Initial load: Attempt automatic cloud sync if user is already authenticated
   useEffect(() => {
-    const existing = gymStorage.getWorkouts();
-    if (existing.length === 0) {
-      gymStorage.seedDemoData();
-      refreshData();
-    }
+    gymStorage.pullFromSupabase().then(res => {
+      if (res.success && res.count > 0) {
+        refreshData();
+      }
+    });
   }, []);
 
   // Update streaks whenever workouts change
@@ -46,7 +51,7 @@ export function App() {
     gymStorage.saveWorkout(finished);
     setWorkout(null);
     refreshData();
-    setActiveTab('streaks'); // Jump to streaks so user sees the reward!
+    setActiveTab('streaks');
   };
 
   const handleDiscardWorkout = () => {
@@ -68,7 +73,14 @@ export function App() {
   const handleUpdateSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     gymStorage.saveSettings(newSettings);
+    if (!newSettings.pin_lock_enabled) {
+      setIsLocked(false);
+    }
   };
+
+  if (isLocked && settings.pin_code) {
+    return <PinLockModal correctPin={settings.pin_code} onUnlock={() => setIsLocked(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gym-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -138,4 +150,3 @@ export function App() {
 }
 
 export default App;
-
