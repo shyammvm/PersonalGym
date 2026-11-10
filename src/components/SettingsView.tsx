@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Settings, Database, Smartphone, Check, Sparkles, 
   Volume2, SmartphoneNfc, Clock, Copy, 
-  Lock, Shield, User as UserIcon, LogIn, LogOut, CloudDownload, Trash2, AlertCircle
+  Lock, Shield, CloudDownload, Trash2
 } from 'lucide-react';
-import { User } from '@supabase/supabase-js';
 import { AppSettings } from '../types';
-import { 
-  updateSupabaseConfig, getSupabaseClient, getCurrentUser, 
-  signInWithEmail, signUpWithEmail, signOutUser 
-} from '../services/supabase';
+import { updateSupabaseConfig, getSupabaseClient } from '../services/supabase';
 import { gymStorage } from '../services/storage';
 import { gymAudio } from '../utils/audio';
 import { triggerHaptic } from '../utils/haptics';
@@ -29,28 +25,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [supabaseKey, setSupabaseKey] = useState(settings.supabase_anon_key || localStorage.getItem('irontrack_supabase_key') || '');
   const [isSaved, setIsSaved] = useState(false);
   const [schemaCopied, setSchemaCopied] = useState(false);
-  const [activeAccordion, setActiveAccordion] = useState<string | null>('auth');
-
-  // Supabase Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authMessage, setAuthMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [activeAccordion, setActiveAccordion] = useState<string | null>(null);
 
   // PIN Lock State
   const [pinEnabled, setPinEnabled] = useState(Boolean(settings.pin_lock_enabled));
   const [pinCode, setPinCode] = useState(settings.pin_code || '');
-
-  useEffect(() => {
-    checkAuth();
-  }, [supabaseUrl, supabaseKey]);
-
-  const checkAuth = async () => {
-    const user = await getCurrentUser();
-    setCurrentUser(user);
-  };
 
   const handleSaveSupabase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,65 +43,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
-    checkAuth();
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!authEmail || !authPassword) return;
-    setAuthLoading(true);
-    setAuthMessage(null);
-    try {
-      const { data, error } = await signInWithEmail(authEmail, authPassword);
-      if (error) throw error;
-      triggerHaptic('success');
-      setCurrentUser(data.user);
-      setAuthMessage({ text: 'Signed in securely! Syncing your workouts...', isError: false });
-      
-      // Pull workouts
-      const res = await gymStorage.pullFromSupabase();
-      if (res.success) {
-        onRefreshData();
-        setSyncStatus(`Synced ${res.count} workouts from Supabase.`);
-      }
-    } catch (err: any) {
-      triggerHaptic('error');
-      setAuthMessage({ text: err.message || 'Failed to sign in', isError: true });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleSignUp = async () => {
-    if (!authEmail || !authPassword) {
-      setAuthMessage({ text: 'Please enter both email and password.', isError: true });
-      return;
-    }
-    setAuthLoading(true);
-    setAuthMessage(null);
-    try {
-      const { data, error } = await signUpWithEmail(authEmail, authPassword);
-      if (error) throw error;
-      triggerHaptic('success');
-      if (data.user) {
-        setCurrentUser(data.user);
-        setAuthMessage({ text: 'Account created! Signed in successfully.', isError: false });
-      } else {
-        setAuthMessage({ text: 'Sign up successful! Please check your email to confirm.', isError: false });
-      }
-    } catch (err: any) {
-      triggerHaptic('error');
-      setAuthMessage({ text: err.message || 'Failed to sign up', isError: true });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    triggerHaptic('medium');
-    await signOutUser();
-    setCurrentUser(null);
-    setAuthMessage({ text: 'Signed out.', isError: false });
   };
 
   const handleManualSync = async () => {
@@ -130,10 +51,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const res = await gymStorage.pullFromSupabase();
     if (res.success) {
       onRefreshData();
-      setSyncStatus(`Successfully synced ${res.count} workouts from cloud.`);
+      setSyncStatus(`Successfully loaded ${res.count} workouts from Supabase.`);
     } else {
       setSyncStatus(`Sync error: ${res.error}`);
     }
+    setTimeout(() => setSyncStatus(null), 4000);
   };
 
   const handleSavePin = (enabled: boolean, code: string) => {
@@ -175,7 +97,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
             Settings <Settings size={22} className="text-emerald-400" />
           </h1>
-          <p className="text-xs text-slate-400">Privacy, Supabase Auth & Preferences</p>
+          <p className="text-xs text-slate-400">Preferences, Supabase Cloud & Privacy</p>
         </div>
       </div>
 
@@ -186,162 +108,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Shield size={18} />
           </div>
           <div className="text-xs text-slate-300 leading-relaxed">
-            <strong className="text-white block font-bold mb-0.5">100% Private in a Public Repository</strong>
-            Your workouts and personal records are <strong>never</strong> committed to GitHub. They are stored strictly in your phone&rsquo;s private browser storage and protected in Supabase via PostgreSQL <strong>Row Level Security (RLS)</strong>.
+            <strong className="text-white block font-bold mb-0.5">Zero Sign-In • 100% Private</strong>
+            No email or password needed! Your Supabase database is your private personal instance. Credentials are stored exclusively on your phone&rsquo;s browser storage and are <strong>never</strong> committed to your public GitHub repo.
           </div>
         </div>
-      </div>
-
-      {/* Supabase User Authentication Section */}
-      <div className="bg-gym-900/90 border border-gym-800 rounded-3xl p-4 mb-5 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <UserIcon size={18} className="text-emerald-400" />
-            <h2 className="text-sm font-bold text-white">Account & Cloud Privacy</h2>
-          </div>
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-              currentUser
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-gym-800 text-slate-400 border border-gym-700'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${currentUser ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-            {currentUser ? 'Authenticated' : 'Local Guest'}
-          </span>
-        </div>
-
-        {currentUser ? (
-          <div className="bg-gym-950/70 p-3.5 rounded-2xl border border-gym-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Signed In As</span>
-                <span className="text-xs font-mono font-bold text-white truncate block max-w-[200px]">
-                  {currentUser.email}
-                </span>
-              </div>
-              <button
-                onClick={handleSignOut}
-                className="px-2.5 py-1 bg-gym-800 hover:bg-gym-700 text-red-400 hover:text-red-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
-              >
-                <LogOut size={12} /> Sign Out
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-gym-800 flex items-center justify-between">
-              <button
-                onClick={handleManualSync}
-                className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition"
-              >
-                <CloudDownload size={14} /> Sync Workouts from Cloud
-              </button>
-            </div>
-
-            {syncStatus && (
-              <p className="text-[11px] text-emerald-400 font-mono text-center">{syncStatus}</p>
-            )}
-          </div>
-        ) : (
-          <form onSubmit={handleSignIn} className="space-y-3">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Sign in or create a private account to sync your gym workouts with Supabase across your devices.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Email</label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                className="w-full bg-gym-950 border border-gym-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={authPassword}
-                onChange={e => setAuthPassword(e.target.value)}
-                className="w-full bg-gym-950 border border-gym-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-              />
-            </div>
-
-            {authMessage && (
-              <div className={`p-2.5 rounded-xl text-xs flex items-center gap-1.5 ${
-                authMessage.isError ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-              }`}>
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{authMessage.text}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-gym-950 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                <LogIn size={14} /> {authLoading ? 'Signing In...' : 'Sign In'}
-              </button>
-              <button
-                type="button"
-                onClick={handleSignUp}
-                disabled={authLoading}
-                className="py-2.5 px-4 bg-gym-800 hover:bg-gym-700 text-slate-200 font-bold rounded-xl text-xs transition disabled:opacity-50"
-              >
-                Create Account
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      {/* 4-Digit Privacy PIN Lock */}
-      <div className="bg-gym-900/90 border border-gym-800 rounded-3xl p-4 mb-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lock size={18} className="text-teal-400" />
-            <div>
-              <h2 className="text-sm font-bold text-white block">4-Digit PIN App Lock</h2>
-              <span className="text-xs text-slate-400">Lock app on launch & backgrounding</span>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              const next = !pinEnabled;
-              handleSavePin(next, pinCode || '1234');
-            }}
-            className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
-              pinEnabled ? 'bg-emerald-500' : 'bg-gym-800'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                pinEnabled ? 'translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        {pinEnabled && (
-          <div className="pt-2 border-t border-gym-800 flex items-center justify-between">
-            <span className="text-xs text-slate-300">Set 4-Digit PIN:</span>
-            <input
-              type="password"
-              maxLength={4}
-              value={pinCode}
-              placeholder="1234"
-              onChange={e => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                handleSavePin(true, val);
-              }}
-              className="w-24 bg-gym-950 border border-gym-700 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-center text-sm font-mono font-bold text-white tracking-widest focus:outline-none"
-            />
-          </div>
-        )}
       </div>
 
       {/* Preferences Section */}
@@ -472,7 +242,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Database size={18} className="text-emerald-400" />
-            <h2 className="text-sm font-bold text-white">Supabase Credentials</h2>
+            <h2 className="text-sm font-bold text-white">Supabase Cloud Sync</h2>
           </div>
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
@@ -482,12 +252,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseActive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-            {isSupabaseActive ? 'Configured' : 'Missing'}
+            {isSupabaseActive ? 'Connected' : 'Offline / Local'}
           </span>
         </div>
 
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-          Stored only in your personal device browser storage. Never exposed in public git commits.
+          Enter your private Supabase project credentials. Every workout automatically syncs to your personal cloud PostgreSQL database.
         </p>
 
         <form onSubmit={handleSaveSupabase} className="space-y-3">
@@ -541,6 +311,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </button>
           </div>
         </form>
+
+        {isSupabaseActive && (
+          <div className="mt-3 pt-3 border-t border-gym-800">
+            <button
+              onClick={handleManualSync}
+              className="w-full py-2 bg-gym-950 hover:bg-gym-800 border border-gym-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+            >
+              <CloudDownload size={14} className="text-emerald-400" /> Fetch Workouts from Supabase
+            </button>
+            {syncStatus && (
+              <p className="text-[11px] text-emerald-400 font-mono text-center mt-2">{syncStatus}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 4-Digit Privacy PIN Lock */}
+      <div className="bg-gym-900/90 border border-gym-800 rounded-3xl p-4 mb-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock size={18} className="text-teal-400" />
+            <div>
+              <h2 className="text-sm font-bold text-white block">Optional 4-Digit PIN Lock</h2>
+              <span className="text-xs text-slate-400">Lock app on launch & backgrounding</span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const next = !pinEnabled;
+              handleSavePin(next, pinCode || '1234');
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
+              pinEnabled ? 'bg-emerald-500' : 'bg-gym-800'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                pinEnabled ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {pinEnabled && (
+          <div className="pt-2 border-t border-gym-800 flex items-center justify-between">
+            <span className="text-xs text-slate-300">Set 4-Digit PIN:</span>
+            <input
+              type="password"
+              maxLength={4}
+              value={pinCode}
+              placeholder="1234"
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                handleSavePin(true, val);
+              }}
+              className="w-24 bg-gym-950 border border-gym-700 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-center text-sm font-mono font-bold text-white tracking-widest focus:outline-none"
+            />
+          </div>
+        )}
       </div>
 
       {/* iLoader & iOS Deployment Guide */}
@@ -564,9 +393,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <strong className="text-emerald-400 block mb-1">Option 1: Sideload with iLoader (iOS App)</strong>
               <ol className="list-decimal list-inside space-y-1 text-slate-300">
                 <li>Run <code className="bg-gym-900 px-1 py-0.5 rounded text-emerald-300 font-mono">./scripts/build_ipa.sh</code> or download the <code className="text-emerald-300">IronTrack.ipa</code> from GitHub Actions releases.</li>
-                <li>Connect your iPhone with USB / Wi-Fi and open <strong>iLoader</strong> (or SideStore/AltStore) on your computer.</li>
+                <li>Connect your iPhone with USB / Wi-Fi and open <strong>iLoader</strong> on your computer.</li>
                 <li>Select <code className="text-emerald-300">IronTrack.ipa</code> and click Sideload.</li>
-                <li>On your iPhone, go to <em>Settings &gt; General &gt; VPN &amp; Device Management</em> and trust your developer certificate. Enjoy native haptics &amp; background timers!</li>
+                <li>On your iPhone, go to <em>Settings &gt; General &gt; VPN &amp; Device Management</em> and trust your developer certificate.</li>
               </ol>
             </div>
 

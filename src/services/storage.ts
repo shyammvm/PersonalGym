@@ -335,14 +335,10 @@ class GymStorageService {
     if (!supabase) return { success: false, count: 0, error: 'Supabase client not configured' };
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, count: 0, error: 'Not authenticated with Supabase' };
-
-      // Query workouts strictly belonging to this authenticated user
+      // Query workouts directly from your private Supabase instance
       const { data: workoutsData, error: wError } = await supabase
         .from('workouts')
         .select('*')
-        .eq('user_id', user.id)
         .order('start_time', { ascending: false });
 
       if (wError) {
@@ -396,7 +392,7 @@ class GymStorageService {
     }
   }
 
-  // Clear all local workouts (e.g., when signing out or starting completely fresh)
+  // Clear all local workouts (e.g., when resetting or starting completely fresh)
   clearAllWorkouts(): void {
     localStorage.removeItem(KEYS.WORKOUTS);
     localStorage.removeItem(KEYS.ACTIVE_WORKOUT);
@@ -408,13 +404,10 @@ class GymStorageService {
     if (!supabase) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // 1. Upsert Workout
+      // 1. Upsert Workout directly into your private Supabase instance
       const { error: wError } = await supabase.from('workouts').upsert({
         id: workout.id,
-        user_id: user.id,
+        user_id: 'owner',
         name: workout.name,
         start_time: workout.start_time,
         end_time: workout.end_time || null,
@@ -454,7 +447,7 @@ class GymStorageService {
       // 3. Update Streaks in Supabase
       const streaks = this.getStreaks();
       await supabase.from('user_streaks').upsert({
-        user_id: user.id,
+        user_id: 'owner',
         current_streak: streaks.current_streak,
         longest_streak: streaks.longest_streak,
         last_workout_date: streaks.last_workout_date,

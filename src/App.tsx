@@ -102,7 +102,13 @@ export function App() {
         )}
 
         {activeTab === 'streaks' && (
-          <StreaksView streaks={streaks} />
+          <StreaksView
+            streaks={streaks}
+            onLogRestDay={() => {
+              gymStorage.logRestDay();
+              refreshData();
+            }}
+          />
         )}
 
         {activeTab === 'history' && (

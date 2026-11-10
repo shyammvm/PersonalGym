@@ -1,12 +1,16 @@
-import React from 'react';
-import { Flame, Trophy, Calendar, Zap, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Flame, Trophy, Calendar, Zap, ShieldCheck, HeartPulse, Check } from 'lucide-react';
 import { UserStreaks } from '../types';
+import { triggerHaptic } from '../utils/haptics';
 
 interface StreaksViewProps {
   streaks: UserStreaks;
+  onLogRestDay?: () => void;
 }
 
-export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
+export const StreaksView: React.FC<StreaksViewProps> = ({ streaks, onLogRestDay }) => {
+  const [loggedRestToday, setLoggedRestToday] = useState(false);
+
   // Generate days for past 12 weeks for GitHub-style heatmap
   const generateHeatmapDays = () => {
     const days: { dateStr: string; isActive: boolean; dayOfWeek: number }[] = [];
@@ -43,6 +47,15 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
 
   const highestStreak = Math.max(streaks.current_streak, streaks.longest_streak);
 
+  const handleRestClick = () => {
+    triggerHaptic('success');
+    if (onLogRestDay) {
+      onLogRestDay();
+    }
+    setLoggedRestToday(true);
+    setTimeout(() => setLoggedRestToday(false), 4000);
+  };
+
   return (
     <div className="pb-28 pt-4 px-4 max-w-md mx-auto">
       {/* Header */}
@@ -75,7 +88,7 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
             <p className="text-xs text-slate-400 mt-2">
               {streaks.current_streak > 0
                 ? "Keep the momentum rolling! You're on fire."
-                : "Complete a workout today to light the flame!"}
+                : "Complete a workout or active recovery today to light the flame!"}
             </p>
           </div>
 
@@ -99,6 +112,31 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
             <span className="text-lg font-black text-orange-400 font-mono">{streaks.workouts_this_week}</span>
           </div>
         </div>
+
+        {/* Log Rest Day Button inside Hero Card */}
+        {onLogRestDay && (
+          <div className="mt-4 pt-4 border-t border-orange-500/10">
+            <button
+              onClick={handleRestClick}
+              disabled={loggedRestToday}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-98 ${
+                loggedRestToday
+                  ? 'bg-emerald-500 text-gym-950'
+                  : 'bg-gym-950/80 hover:bg-gym-800 border border-gym-700/80 text-slate-300 hover:text-white'
+              }`}
+            >
+              {loggedRestToday ? (
+                <>
+                  <Check size={14} className="stroke-[3]" /> Active Recovery Logged! Streak Safe.
+                </>
+              ) : (
+                <>
+                  <HeartPulse size={14} className="text-teal-400" /> Taking a Rest Day? Tap to Log Active Recovery &amp; Keep Streak
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Activity Heatmap */}
@@ -117,7 +155,7 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
           {heatmapDays.map((d, i) => (
             <div
               key={i}
-              title={`${d.dateStr}: ${d.isActive ? 'Workout Completed!' : 'Rest Day'}`}
+              title={`${d.dateStr}: ${d.isActive ? 'Active Day Logged!' : 'Inactive Day'}`}
               className={`w-3.5 h-3.5 rounded-sm transition-all ${
                 d.isActive
                   ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]'
@@ -192,4 +230,3 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
     </div>
   );
 };
-
