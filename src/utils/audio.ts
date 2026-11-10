@@ -106,3 +106,4 @@ class GymAudioService {
 }
 
 export const gymAudio = new GymAudioService();
+

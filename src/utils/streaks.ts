@@ -105,3 +105,4 @@ export function calculateStreaks(workouts: Workout[]): UserStreaks {
     active_dates: activeDates
   };
 }
+

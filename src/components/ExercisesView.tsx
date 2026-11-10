@@ -247,3 +247,4 @@ export const ExercisesView: React.FC<ExercisesViewProps> = ({ unit }) => {
     </div>
   );
 };
+

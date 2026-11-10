@@ -76,3 +76,4 @@ export function notifyRestTimerDone(exerciseName?: string): void {
     }
   }
 }
+

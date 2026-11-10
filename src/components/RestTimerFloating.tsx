@@ -189,3 +189,4 @@ export const RestTimerFloating: React.FC<RestTimerProps> = ({
     </div>
   );
 };
+

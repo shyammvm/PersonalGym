@@ -51,3 +51,4 @@ export function updateSupabaseConfig(url: string, key: string): boolean {
     return false;
   }
 }
+

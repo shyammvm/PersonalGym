@@ -261,3 +261,4 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     instructions: 'Rotate torso across body with core engaged, arms extended.'
   }
 ];
+

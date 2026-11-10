@@ -173,3 +173,4 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     </div>
   );
 };
+

@@ -168,3 +168,4 @@ insert into public.exercises (id, user_id, name, muscle_group, equipment, defaul
   ('ex-plank', null, 'Plank', 'Core', 'Bodyweight', 60),
   ('ex-cable-woodchopper', null, 'Cable Woodchopper', 'Core', 'Cable', 60)
 on conflict (id) do nothing;
+

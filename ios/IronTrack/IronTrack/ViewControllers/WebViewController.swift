@@ -230,3 +230,4 @@ class WebViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, W
         present(alert, animated: true)
     }
 }
+

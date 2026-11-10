@@ -57,3 +57,4 @@ else
     echo "  1. GitHub Actions: Push to your GitHub repo and the automated workflow will build IronTrack.ipa for you to download from GitHub Releases!"
     echo "  2. Open $IOS_DIR/IronTrack.xcodeproj in Xcode on your Mac and choose Product -> Archive."
 fi
+

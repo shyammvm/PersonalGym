@@ -157,3 +157,4 @@ npm run build
 └── supabase/
     └── schema.sql            # Supabase PostgreSQL tables & RLS policies
 ```
+

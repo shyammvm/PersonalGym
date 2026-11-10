@@ -85,3 +85,4 @@ export interface WorkoutTemplate {
     rest_seconds: number;
   }[];
 }
+
