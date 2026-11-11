@@ -1,3 +1,4 @@
+import { Workout, Exercise, AppSettings, UserStreaks } from '../types';
 import { Workout, WorkoutSet, Exercise, AppSettings, UserStreaks } from '../types';
 import { DEFAULT_EXERCISES } from '../data/defaultExercises';
 import { calculateStreaks } from '../utils/streaks';
@@ -404,9 +405,14 @@ class GymStorageService {
     if (!supabase) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Upsert Workout
       // 1. Upsert Workout directly into your private Supabase instance
       const { error: wError } = await supabase.from('workouts').upsert({
         id: workout.id,
+        user_id: user.id,
         user_id: 'owner',
         name: workout.name,
         start_time: workout.start_time,
@@ -447,6 +453,7 @@ class GymStorageService {
       // 3. Update Streaks in Supabase
       const streaks = this.getStreaks();
       await supabase.from('user_streaks').upsert({
+        user_id: user.id,
         user_id: 'owner',
         current_streak: streaks.current_streak,
         longest_streak: streaks.longest_streak,

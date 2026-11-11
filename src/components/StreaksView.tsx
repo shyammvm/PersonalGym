@@ -1,3 +1,5 @@
+import React from 'react';
+import { Flame, Trophy, Calendar, Zap, ShieldCheck } from 'lucide-react';
 import React, { useState } from 'react';
 import { Flame, Trophy, Calendar, Zap, ShieldCheck, HeartPulse, Check } from 'lucide-react';
 import { UserStreaks } from '../types';
@@ -8,6 +10,7 @@ interface StreaksViewProps {
   onLogRestDay?: () => void;
 }
 
+export const StreaksView: React.FC<StreaksViewProps> = ({ streaks }) => {
 export const StreaksView: React.FC<StreaksViewProps> = ({ streaks, onLogRestDay }) => {
   const [loggedRestToday, setLoggedRestToday] = useState(false);
 
@@ -88,6 +91,7 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks, onLogRestDay 
             <p className="text-xs text-slate-400 mt-2">
               {streaks.current_streak > 0
                 ? "Keep the momentum rolling! You're on fire."
+                : "Complete a workout today to light the flame!"}
                 : "Complete a workout or active recovery today to light the flame!"}
             </p>
           </div>
@@ -155,6 +159,7 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks, onLogRestDay 
           {heatmapDays.map((d, i) => (
             <div
               key={i}
+              title={`${d.dateStr}: ${d.isActive ? 'Workout Completed!' : 'Rest Day'}`}
               title={`${d.dateStr}: ${d.isActive ? 'Active Day Logged!' : 'Inactive Day'}`}
               className={`w-3.5 h-3.5 rounded-sm transition-all ${
                 d.isActive
@@ -230,3 +235,4 @@ export const StreaksView: React.FC<StreaksViewProps> = ({ streaks, onLogRestDay 
     </div>
   );
 };
+
